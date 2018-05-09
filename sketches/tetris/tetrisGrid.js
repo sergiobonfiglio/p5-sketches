@@ -79,11 +79,11 @@ class TetrisGrid {
       }
       if (shouldClear) {
         linesToClear.push(r);
-        console.log('clear line ' + r)
+        // console.log('clear line ' + r)
       }
     }
 
-    this.score += 100 * Math.pow(2, linesToClear.length) * linesToClear.length;
+    this.score += 0.1 + 100 * Math.pow(2, linesToClear.length) * linesToClear.length;
 
     //clear lines and push down lines above
     for (let i = linesToClear.length - 1; i >= 0; i--) {

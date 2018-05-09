@@ -120,6 +120,15 @@ class Matrix {
         return m;
     }
 
+  copy() {
+    let m = new Matrix(this.rows, this.cols);
+    for (let i = 0; i < this.rows; i++) {
+      for (let j = 0; j < this.cols; j++) {
+        m.data[i][j] = this.data[i][j];
+      }
+    }
+    return m;
+  }
 
     randomize(n, m) {
         let max = m || n;
