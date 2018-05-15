@@ -22,12 +22,12 @@ class NeuralNetwork {
       //init weights
       this.weights = [];
       for (let i = 0; i < parent.weights.length; i++) {
-        this.weights.push(parent.weights[i].clone());
+        this.weights.push(tf.variable(parent.weights[i].clone()));
       }
 
       this.biases = [];
       for (let i = 0; i < parent.biases.length; i++) {
-        this.biases.push(parent.biases[i].clone());
+        this.biases.push(tf.variable(parent.biases[i].clone()));
       }
 
     } else {
@@ -112,20 +112,19 @@ class NeuralNetwork {
       if (retValues) {
         return ret;
       } else {
-        return ret.dataSync();
+        let array = ret.dataSync();
+        ret.dispose();
+        return array;
       }
 
     }
   }
 
 
-
   train(inputs, targets) {
     tf.tidy(() => {
-      // const f = x => x.sigmoid().mul(tf.scalar(-1));
-      // const dsigmoid = tf.grad(f);
+
       let sigmoid = tf.customGrad(x => {
-        // Override gradient of our custom x ^ 2 op to be dy * abs(x);
         return {value: x.sigmoid(), gradFunc: dy => x.mul(tf.scalar(1).sub(x))};
       });
       let dsigmoid = tf.grad(x => sigmoid(x));
@@ -134,10 +133,6 @@ class NeuralNetwork {
       ({guess, nodeValues} = this.feedForward(inputs, true));
 
       let outErrors = tf.tensor1d(targets).sub(guess);
-      // let outErrors = guess.sub(tf.tensor1d(targets));
-
-      // console.log('error BEFORE');
-      // outErrors.print();
 
       let currErr = outErrors.transpose();
       for (let i = this.weights.length - 1; i >= 0; i--) {
@@ -154,13 +149,6 @@ class NeuralNetwork {
         currErr = transW.matMul(currErr);
       }
 
-
-      //check if error diminished
-      // ({guess, nodeValues} = this.feedForward(inputs, false));
-      // outErrors = guess.sub(tf.tensor1d(targets));
-      // console.log('error AFTER');
-      // outErrors.print();
-
     });
 
   }
@@ -172,15 +160,20 @@ class NeuralNetwork {
   }
 
   // Accept an arbitrary function for mutation
-  mutateNormal(mean, std) {
+  mutateNormal(mean, std, mutationRate) {
+    mutationRate = mutationRate || 0.1;
     tf.tidy(() => {
       for (let i = 0; i < this.weights.length; i++) {
-        let shape = this.weights[i].shape;
-        this.weights[i].assign(this.weights[i].add(tf.randomNormal(shape, mean, std)));
+        if (Math.random() < mutationRate) {
+          let shape = this.weights[i].shape;
+          this.weights[i].assign(this.weights[i].clone().add(tf.randomNormal(shape, mean, std)));
+        }
       }
       for (let i = 0; i < this.biases.length; i++) {
-        let shape = this.biases[i].shape;
-        this.biases[i].assign(this.biases[i].add(tf.randomNormal(shape, mean, std)));
+        if (Math.random() < mutationRate) {
+          let shape = this.biases[i].shape;
+          this.biases[i].assign(this.biases[i].clone().add(tf.randomNormal(shape, mean, std)));
+        }
       }
     });
 

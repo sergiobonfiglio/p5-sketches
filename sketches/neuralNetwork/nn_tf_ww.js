@@ -1,8 +1,9 @@
 importScripts(
-  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.10.0",
+  "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.10.3",
   'nn_tf.js');
 let nn;
 
+// tf.setBackend('cpu');
 onmessage = function (e) {
 
   if (e.data.type === 'init') {
