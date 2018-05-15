@@ -106,7 +106,7 @@ class TetrisGrid {
   collideWithGarbage(piece) {
     for (let r = 0; r < piece.box.length; r++) {
       for (let c = 0; c < piece.box[r].length; c++) {
-        if (this.board[r + piece.r][c + piece.c] !== 0 && piece.box[r][c] !== 0) {
+        if (this.board[r + piece.r][c + piece.c] === 1 && piece.box[r][c] !== 0) {
           return true;
         }
       }
@@ -164,7 +164,16 @@ class TetrisGrid {
       this.movingDown !== 0 && (frameCount) % 5 === 0) {
       this.nextStep();
     }
-
+    // for (let i = 0; i < this.pieces.length; i++) {
+    //   let p = this.pieces[i];
+    //   for (let rp = 0; rp < p.box.length; rp++) {
+    //     for (let cp = 0; cp < p.box[0].length; cp++) {
+    //       let gridR = p.r + rp;
+    //       let gridC = p.c + cp;
+    //       this.board[gridR][gridC] = p.box[rp][cp] > 0 ? 2 : 0;
+    //     }
+    //   }
+    // }
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         if (this.board[r][c] === 0) {

@@ -11,9 +11,9 @@ class Piece {
   }
 
   static randPiece(r, c, board) {
-    let t = floor(random(0, 7));
+    let t = floor(random(0, 1));
     let rot = floor(random(0, 4));
-    // let rot = 1;
+
     let p;
     if (t === 0) {
       p = new PieceO(r, c, rot, board);

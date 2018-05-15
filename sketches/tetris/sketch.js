@@ -1,4 +1,4 @@
-let rows = 20;
+let rows = 12;
 let cols = 10;
 
 let grid;
@@ -14,6 +14,8 @@ let generation = 0;
 let bestBoard = null;
 let showBestButton;
 
+let agentSlider;
+
 function setup() {
   let res = 30;
   createCanvas(cols * res, rows * res);
@@ -22,19 +24,24 @@ function setup() {
   cellH = height / rows;
   // grid = new TetrisGrid(rows, cols, cellW, cellH);
 
-  score = createP("MAX SCORE: ");
-  showBestButton = createCheckbox("Show best");
+
+  tf.setBackend('cpu');
 
   let inputs = rows * cols;
   population = [];
   boards = [];
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 500; i++) {
     boards[i] = new TetrisGrid(rows, cols, cellW, cellH);
-    population[i] = new NeuralNetwork(inputs, [floor(inputs / 2)], 3);
+    population[i] = new NeuralNetwork(inputs, [inputs, floor(inputs / 2)], 4);
   }
 
   bestBoard = boards[0];
 
+  score = createP("MAX SCORE: ");
+  showBestButton = createCheckbox("Show best");
+  showBestButton.checked(true);
+
+  agentSlider = createSlider(0, population.length - 1, 0, 1);
 }
 
 //
@@ -65,24 +72,21 @@ function setup() {
 // }
 
 let drawingBoardIx = 0;
+let bestBoardIx = 0;
 let drawingBoard = null;
+
+let lastGeneration = new Date();
 
 function draw() {
   background(0);
 
   if (showBestButton.checked()) {
     drawingBoard = bestBoard;
-  } else if (frameCount % 120 === 0) {
-    drawingBoardIx = (drawingBoardIx + 1) % boards.length;
+    drawingBoardIx = bestBoardIx;
+    agentSlider.value(drawingBoardIx);
+  } else {
+    drawingBoardIx = agentSlider.value();
     drawingBoard = boards[drawingBoardIx];
-  }
-
-  if (drawingBoard) {
-    drawingBoard.draw();
-
-    score.html("MAX SCORE: " + bestScore +
-      "<br>current: " + drawingBoardIx + " = " + drawingBoard.score +
-      "<br>generation " + generation);
   }
 
 
@@ -92,21 +96,34 @@ function draw() {
   }
   // }
 
-
 //neuro evolution
-  let areGamesRunning = false;
+  let runningGames = 0;
   for (let i = 0; i < population.length; i++) {
     let agent = population[i];
     if (!boards[i].gameover) {
-      areGamesRunning |= true;
+      runningGames++;
 
       //guess and select move
-      let input = [].concat(...boards[i].board);
+      let board = [];
+      for (let r = 0; r < boards[i].board.length; r++) {
+        board[r] = boards[i].board[r].slice();
+      }
+
+      let p = boards[i].pieces[0];
+      for (let rp = 0; rp < p.box.length; rp++) {
+        for (let cp = 0; cp < p.box[0].length; cp++) {
+          let gridR = p.r + rp;
+          let gridC = p.c + cp;
+          board[gridR][gridC] = p.box[rp][cp] > 0 ? 2 : 0;
+        }
+      }
+
+      let input = [].concat(...board);
       let guess = agent.feedForward(input);
 
       let maxI = 0;
       for (let j = 1; j < guess.length; j++) {
-        if (guess[j][0] > guess[maxI][0]) {
+        if (guess[j] > guess[maxI]) {
           maxI = j;
         }
       }
@@ -117,31 +134,57 @@ function draw() {
         boards[i].moveH(1);
       } else if (move === 2) {
         boards[i].rotate();
+      } else if (move === 3) {
+        //do nothing
       }
 
       //update best score
       if (boards[i].score > bestScore) {
         bestScore = boards[i].score;
         bestBoard = boards[i];
+        bestBoardIx = i;
       }
     }
   }
 
-  if (!areGamesRunning) {
+  drawingBoard.draw();
+
+  score.html("MAX SCORE: " + bestScore +
+    "<br>current: " + drawingBoardIx + " = " + drawingBoard.score +
+    "<br>generation " + generation +
+    "<br>running: " + runningGames
+  );
+
+
+  if (runningGames === 0) {
     //create new generation
     generation++;
-    console.log("new generation: " + generation);
+    let runtime = new Date() - lastGeneration;
+    lastGeneration = new Date();
 
     //normalizeFitness
     normalizeFitness(boards, population);
     //generate new brains
     population = generatePopulation(boards, population);
 
-
-    //reset game
+    //reset games
+    let scoreSum = 0;
     for (let i = 0; i < boards.length; i++) {
+      scoreSum += boards[i].score;
       boards[i] = new TetrisGrid(rows, cols, cellW, cellH);
     }
+    bestBoard = boards[0];
+    bestBoardIx = 0;
+
+    let initTime = new Date() - lastGeneration;
+    lastGeneration = new Date();
+
+
+    console.log(
+      "new generation: " + generation +
+      ", meanScore: " + (scoreSum / boards.length) +
+      ", runtime: " + (runtime / 1000) + "s" +
+      ", initTime: " + (initTime / 1000) + "s");
   }
 
 
@@ -151,7 +194,7 @@ function generatePopulation(boards, population) {
 
   let tickets = [];
   for (let i = 0; i < population.length; i++) {
-    let chance = (population[i].fitness + random(0.01, 0.1)) * 10;
+    let chance = (population[i].fitness + random(-0.05, 0.05)) * 50;
     for (let j = 0; j < chance; j++) {
       tickets.push(i);
     }
@@ -161,8 +204,12 @@ function generatePopulation(boards, population) {
   for (let i = 0; i < population.length; i++) {
     let r = floor(random(0, tickets.length));
     let selectedAgent = population[tickets[r]].copy();
-    selectedAgent.mutate(mutate);
+    selectedAgent.mutateNormal(0, 0.25);
     newPop.push(selectedAgent);
+  }
+
+  for (let i = 0; i < population.length; i++) {
+    population[i].dispose();
   }
 
   return newPop;
@@ -181,14 +228,5 @@ function normalizeFitness(boards, population) {
 
 }
 
-function mutate(x) {
-  if (random(1) < 0.1) {
-    let offset = randomGaussian() * 0.5;
-    let newx = x + offset;
-    return newx;
-  } else {
-    return x;
-  }
-}
 
 
